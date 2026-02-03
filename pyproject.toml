@@ -1,0 +1,19 @@
+[project]
+name = "speakpy"
+version = "0.1.0"
+description = "Audio recording to speech-to-text script using speaches.ai"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "requests>=2.31.0",
+    "ffmpeg-python>=0.2.0",
+]
+
+[project.scripts]
+speakpy = "speakpy:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
