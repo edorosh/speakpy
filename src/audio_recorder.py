@@ -63,11 +63,10 @@ class AudioRecorder:
                   f"{device['channels']:<10} {device['sample_rate']:.0f} Hz")
         print("-" * 70)
     
-    def record(self, duration: float, device: Optional[int] = None) -> np.ndarray:
-        """Record audio from the specified device.
+    def record_until_stopped(self, device: Optional[int] = None) -> np.ndarray:
+        """Record audio continuously until interrupted.
         
         Args:
-            duration: Recording duration in seconds
             device: Device index to record from (None for default)
             
         Returns:
@@ -75,25 +74,47 @@ class AudioRecorder:
             
         Raises:
             RuntimeError: If recording fails
+            KeyboardInterrupt: When user interrupts recording
         """
         try:
-            logger.info(f"Recording {duration} seconds of audio...")
+            logger.info("Starting continuous recording...")
             
             if device is not None:
                 logger.info(f"Using device index: {device}")
             
-            # Record audio
-            recording = sd.rec(
-                int(duration * self.sample_rate),
+            # Storage for audio chunks
+            recorded_chunks = []
+            
+            def audio_callback(indata, frames, time, status):
+                """Callback for audio stream."""
+                if status:
+                    logger.warning(f"Audio callback status: {status}")
+                # Copy audio data to our buffer
+                recorded_chunks.append(indata.copy())
+            
+            # Start recording stream
+            with sd.InputStream(
                 samplerate=self.sample_rate,
                 channels=self.channels,
                 device=device,
-                dtype='float32'
-            )
+                dtype='float32',
+                callback=audio_callback
+            ):
+                logger.info("Recording started. Press CTRL+C to stop...")
+                # Keep the stream open until interrupted
+                while True:
+                    sd.sleep(100)  # Sleep in small chunks to be responsive
             
-            sd.wait()  # Wait until recording is finished
+        except KeyboardInterrupt:
+            # This is expected when user wants to stop recording
+            logger.info("Recording interrupted by user")
             
-            logger.info("Recording completed successfully")
+            if not recorded_chunks:
+                raise RuntimeError("No audio data recorded")
+            
+            # Concatenate all chunks
+            recording = np.concatenate(recorded_chunks, axis=0)
+            logger.info(f"Recording completed successfully ({len(recording) / self.sample_rate:.2f} seconds)")
             return recording
             
         except Exception as e:

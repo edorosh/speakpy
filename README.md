@@ -74,42 +74,45 @@ python speakpy.py --list-devices
 ### Basic Recording and Transcription
 
 ```powershell
-# Record 5 seconds from default microphone
-python speakpy.py --duration 5
+# Record from default microphone (press CTRL+C to stop)
+python speakpy.py
 
-# Record 10 seconds from specific device (use device index from --list-devices)
-python speakpy.py --duration 10 --device 1
+# Record from specific device (use device index from --list-devices)
+python speakpy.py --device 1
 ```
+
+**Recording Control:**
+- Press **CTRL+C once** to stop recording and proceed to transcription
+- Press **CTRL+C twice** to exit the application immediately
 
 ### Advanced Options
 
 ```powershell
 # Specify language for better accuracy
-python speakpy.py --duration 5 --language en
+python speakpy.py --language en
 
 # Use custom API endpoint
-python speakpy.py --duration 5 --api-url http://192.168.1.100:8000
+python speakpy.py --api-url http://192.168.1.100:8000
 
 # Use different model
-python speakpy.py --duration 5 --model "Systran/faster-whisper-medium"
+python speakpy.py --model "Systran/faster-whisper-medium"
 
 # Enable verbose logging
-python speakpy.py --duration 5 --verbose
+python speakpy.py --verbose
 
 # Keep temporary audio files for debugging
-python speakpy.py --duration 5 --keep-files
+python speakpy.py --keep-files
 ```
 
 ### Full Command Reference
 
 ```
-usage: speakpy.py [-h] [--list-devices] [--duration DURATION] [--device DEVICE]
+usage: speakpy.py [-h] [--list-devices] [--device DEVICE]
                   [--api-url API_URL] [--model MODEL] [--language LANGUAGE]
                   [--sample-rate SAMPLE_RATE] [--verbose] [--keep-files]
 
 Arguments:
   --list-devices          List available audio input devices and exit
-  --duration DURATION     Recording duration in seconds (default: 5.0)
   --device DEVICE         Audio input device index
   --api-url API_URL       Speaches.ai API base URL (default: http://localhost:8000)
   --model MODEL           Model to use for transcription
@@ -149,7 +152,7 @@ Arguments:
 ### Poor transcription quality
 - Ensure good microphone quality and minimal background noise
 - Try specifying the language: `--language en`
-- Increase recording duration for more context
+- Record for longer (speak more before pressing CTRL+C) for better context
 - Check if the correct audio device is selected
 
 ## Project Structure

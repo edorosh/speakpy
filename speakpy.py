@@ -31,17 +31,17 @@ Examples:
   # List available audio devices
   python speakpy.py --list-devices
   
-  # Record 5 seconds from default device
-  python speakpy.py --duration 5
+  # Record from default device (press CTRL+C to stop)
+  python speakpy.py
   
   # Record from specific device
-  python speakpy.py --duration 10 --device 1
+  python speakpy.py --device 1
   
   # Use custom API endpoint
-  python speakpy.py --duration 5 --api-url http://192.168.1.100:8000
+  python speakpy.py --api-url http://192.168.1.100:8000
   
   # Specify language
-  python speakpy.py --duration 5 --language en
+  python speakpy.py --language en
         """
     )
     
@@ -49,13 +49,6 @@ Examples:
         "--list-devices",
         action="store_true",
         help="List available audio input devices and exit"
-    )
-    
-    parser.add_argument(
-        "--duration",
-        type=float,
-        default=5.0,
-        help="Recording duration in seconds (default: 5.0)"
     )
     
     parser.add_argument(
@@ -139,15 +132,39 @@ Examples:
     
     temp_wav = None
     temp_opus = None
+    interrupt_count = [0]  # Use list to allow modification in nested function
+    recording_active = [False]  # Track if we're in recording phase
+    
+    def signal_handler(sig, frame):
+        """Handle CTRL+C interrupts."""
+        interrupt_count[0] += 1
+        if not recording_active[0]:
+            # Not recording, exit immediately
+            print("\n\n❌ Exiting application")
+            logger.info("Application interrupted by user")
+            sys.exit(130)
+        elif interrupt_count[0] >= 2:
+            # Second CTRL+C during or after recording, exit
+            print("\n\n❌ Exiting application (CTRL+C pressed twice)")
+            logger.info("Application interrupted by user (double CTRL+C)")
+            sys.exit(130)
+        else:
+            # First CTRL+C during recording - let it propagate to stop recording
+            raise KeyboardInterrupt
+    
+    # Set up signal handler
+    import signal
+    signal.signal(signal.SIGINT, signal_handler)
     
     try:
         # Record audio
-        print(f"\n🎤 Recording for {args.duration} seconds...")
+        print("\n🎤 Recording... Press CTRL+C once to stop recording, twice to exit.")
         print("Speak now!\n")
         
-        audio_data = recorder.record(duration=args.duration, device=args.device)
-        
-        print("✓ Recording complete\n")
+        recording_active[0] = True
+        audio_data = recorder.record_until_stopped(device=args.device)
+        recording_active[0] = False
+        print("\n✓ Recording complete\n")
         
         # Save to temporary WAV file
         temp_wav = get_temp_audio_file(".wav")
@@ -182,11 +199,6 @@ Examples:
         print("=" * 70)
         
         return 0
-        
-    except KeyboardInterrupt:
-        print("\n\nInterrupted by user")
-        logger.info("Process interrupted by user")
-        return 130
         
     except Exception as e:
         logger.error(f"Error: {e}")
