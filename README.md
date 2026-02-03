@@ -5,6 +5,7 @@ Audio recording to speech-to-text script using speaches.ai API. Record audio fro
 ## Features
 
 - 🎤 **Audio Recording**: Record from any audio input device using sounddevice
+- 🎙️ **Voice Activity Detection (VAD)**: Optional silence filtering using Silero VAD
 - 🗜️ **Smart Compression**: Automatic silence removal and Opus encoding with ffmpeg
 - 🚀 **Fast Transcription**: Uses speaches.ai (OpenAI-compatible API) with faster-whisper
 - 💻 **Windows Compatible**: Works on Windows 11 without admin rights
@@ -88,8 +89,17 @@ python speakpy.py --device 1
 ### Advanced Options
 
 ```powershell
+# Enable Voice Activity Detection (only record speech, skip silence)
+python speakpy.py --vad
+
+# Adjust VAD sensitivity (lower = more sensitive)
+python speakpy.py --vad --vad-threshold 0.3
+
 # Specify language for better accuracy
 python speakpy.py --language en
+
+# Combine VAD with language specification
+python speakpy.py --vad --language en
 
 # Use custom API endpoint
 python speakpy.py --api-url http://192.168.1.100:8000
@@ -104,12 +114,30 @@ python speakpy.py --verbose
 python speakpy.py --keep-files
 ```
 
+### Voice Activity Detection (VAD)
+
+The `--vad` flag enables real-time voice activity detection to record only when you're speaking:
+
+- **Automatic Silence Removal**: Skips silent segments during recording
+- **Real-time Feedback**: Shows "🎤 Speech detected..." or "⏸️ Silence..." status
+- **Smaller Files**: Output contains only speech, reducing file size
+- **Adjustable Sensitivity**: Use `--vad-threshold` (0.0-1.0) to tune detection
+  - Lower values (0.2-0.4): More sensitive, catches quieter speech
+  - Default (0.5): Balanced for normal speaking
+  - Higher values (0.6-0.8): Less sensitive, filters more aggressively
+
+**Note**: VAD requires PyTorch (~200MB). Install with:
+```powershell
+uv pip install torch
+```
+
 ### Full Command Reference
 
 ```
 usage: speakpy.py [-h] [--list-devices] [--device DEVICE]
                   [--api-url API_URL] [--model MODEL] [--language LANGUAGE]
                   [--sample-rate SAMPLE_RATE] [--verbose] [--keep-files]
+                  [--vad] [--vad-threshold VAD_THRESHOLD]
 
 Arguments:
   --list-devices          List available audio input devices and exit
@@ -120,17 +148,20 @@ Arguments:
   --sample-rate RATE      Recording sample rate in Hz (default: 44100)
   --verbose               Enable verbose logging
   --keep-files            Keep temporary audio files for debugging
+  --vad                   Enable Voice Activity Detection
+  --vad-threshold THRESH  VAD sensitivity 0.0-1.0 (default: 0.5)
 ```
 
 ## How It Works
 
 1. **Recording**: Captures audio from your microphone using the sounddevice library
-2. **Compression**: Processes audio with ffmpeg:
+2. **VAD (Optional)**: Detects and filters voice activity in real-time using Silero VAD
+3. **Compression**: Processes audio with ffmpeg:
    - Removes silence at the beginning
    - Converts to 16kHz mono
    - Encodes with Opus codec at 32kbps for minimal file size
-3. **Transcription**: Sends compressed audio to speaches.ai API
-4. **Results**: Displays the transcription in your console
+4. **Transcription**: Sends compressed audio to speaches.ai API
+5. **Results**: Displays the transcription in your console
 
 ## Troubleshooting
 
@@ -167,6 +198,7 @@ speakpy/
 │   ├── audio_recorder.py   # Audio recording with sounddevice
 │   ├── audio_compressor.py # FFmpeg compression
 │   ├── api_client.py       # Speaches.ai API client
+│   ├── vad_processor.py    # Voice Activity Detection (Silero VAD)
 │   └── utils.py            # Helper functions
 └── ffmpeg/                 # Optional: portable ffmpeg
     └── bin/

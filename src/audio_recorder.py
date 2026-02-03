@@ -63,14 +63,19 @@ class AudioRecorder:
                   f"{device['channels']:<10} {device['sample_rate']:.0f} Hz")
         print("-" * 70)
     
-    def record_until_stopped(self, device: Optional[int] = None) -> np.ndarray:
+    def record_until_stopped(
+        self, 
+        device: Optional[int] = None,
+        vad_processor=None
+    ) -> np.ndarray:
         """Record audio continuously until interrupted.
         
         Args:
             device: Device index to record from (None for default)
+            vad_processor: Optional StreamingVAD instance for voice activity detection
             
         Returns:
-            NumPy array containing audio data
+            NumPy array containing audio data (only speech if VAD enabled)
             
         Raises:
             RuntimeError: If recording fails
@@ -84,13 +89,33 @@ class AudioRecorder:
             
             # Storage for audio chunks
             recorded_chunks = []
+            last_speech_state = False
             
             def audio_callback(indata, frames, time, status):
                 """Callback for audio stream."""
                 if status:
                     logger.warning(f"Audio callback status: {status}")
+                
                 # Copy audio data to our buffer
-                recorded_chunks.append(indata.copy())
+                audio_data = indata.copy()
+                
+                if vad_processor:
+                    # Process through VAD
+                    is_speech, speech_prob = vad_processor.process_chunk(audio_data)
+                    
+                    # Only store if speech detected OR we're in a speech segment
+                    # (StreamingVAD handles buffering internally)
+                    nonlocal last_speech_state
+                    if is_speech != last_speech_state:
+                        # State changed, print feedback
+                        if is_speech:
+                            print("🎤 Speech detected...", end='\r', flush=True)
+                        else:
+                            print("⏸️  Silence...        ", end='\r', flush=True)
+                        last_speech_state = is_speech
+                else:
+                    # No VAD, record everything
+                    recorded_chunks.append(audio_data)
             
             # Start recording stream
             with sd.InputStream(
@@ -109,11 +134,24 @@ class AudioRecorder:
             # This is expected when user wants to stop recording
             logger.info("Recording interrupted by user")
             
-            if not recorded_chunks:
-                raise RuntimeError("No audio data recorded")
+            if vad_processor:
+                # Get speech audio from VAD processor
+                recording = vad_processor.get_speech_audio()
+                if recording is None or len(recording) == 0:
+                    raise RuntimeError("No speech detected during recording")
+                
+                # Print statistics
+                stats = vad_processor.get_statistics()
+                logger.info(
+                    f"VAD Statistics: {stats['speech_chunks']}/{stats['total_chunks']} "
+                    f"chunks contained speech ({stats['speech_ratio']*100:.1f}%)"
+                )
+            else:
+                # No VAD, use regular chunks
+                if not recorded_chunks:
+                    raise RuntimeError("No audio data recorded")
+                recording = np.concatenate(recorded_chunks, axis=0)
             
-            # Concatenate all chunks
-            recording = np.concatenate(recorded_chunks, axis=0)
             logger.info(f"Recording completed successfully ({len(recording) / self.sample_rate:.2f} seconds)")
             return recording
             

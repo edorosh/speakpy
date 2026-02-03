@@ -16,6 +16,7 @@ from src.audio_recorder import AudioRecorder
 from src.audio_compressor import AudioCompressor
 from src.api_client import SpeachesClient
 from src.utils import setup_logging, get_temp_audio_file, cleanup_file
+from src.vad_processor import VADProcessor, StreamingVAD
 
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,19 @@ Examples:
         help="Keep temporary audio files (for debugging)"
     )
     
+    parser.add_argument(
+        "--vad",
+        action="store_true",
+        help="Enable Voice Activity Detection to filter out silence"
+    )
+    
+    parser.add_argument(
+        "--vad-threshold",
+        type=float,
+        default=0.5,
+        help="VAD sensitivity threshold 0.0-1.0 (default: 0.5, lower=more sensitive)"
+    )
+    
     args = parser.parse_args()
     
     # Setup logging
@@ -157,12 +171,45 @@ Examples:
     signal.signal(signal.SIGINT, signal_handler)
     
     try:
+        # Initialize VAD if requested
+        vad_streaming = None
+        if args.vad:
+            try:
+                logger.info("Initializing Voice Activity Detection...")
+                vad = VADProcessor(
+                    sample_rate=16000,  # Silero VAD works at 16kHz
+                    threshold=args.vad_threshold
+                )
+                if not vad.is_available():
+                    logger.error("VAD is not available")
+                    VADProcessor.print_installation_instructions()
+                    return 1
+                
+                vad_streaming = StreamingVAD(
+                    vad_processor=vad,
+                    original_sample_rate=args.sample_rate
+                )
+                logger.info(f"VAD enabled (threshold: {args.vad_threshold})")
+                print(f"\n✓ Voice Activity Detection enabled (threshold: {args.vad_threshold})")
+            except Exception as e:
+                logger.error(f"Failed to initialize VAD: {e}")
+                print(f"\n❌ Failed to initialize VAD: {e}")
+                print("Try installing torch: uv pip install torch")
+                return 1
+        
         # Record audio
-        print("\n🎤 Recording... Press CTRL+C once to stop recording, twice to exit.")
-        print("Speak now!\n")
+        vad_status = " with VAD filtering" if args.vad else ""
+        print(f"\n🎤 Recording{vad_status}... Press CTRL+C once to stop recording, twice to exit.")
+        if args.vad:
+            print("VAD will detect and record only when you speak.\n")
+        else:
+            print("Speak now!\n")
         
         recording_active[0] = True
-        audio_data = recorder.record_until_stopped(device=args.device)
+        audio_data = recorder.record_until_stopped(
+            device=args.device,
+            vad_processor=vad_streaming
+        )
         recording_active[0] = False
         print("\n✓ Recording complete\n")
         
