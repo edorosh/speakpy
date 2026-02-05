@@ -134,15 +134,9 @@ Examples:
     recorder = AudioRecorder(sample_rate=args.sample_rate, channels=1)
     client = SpeachesClient(base_url=args.api_url, model=args.model)
     
-    # Check API health
-    logger.info("Checking speaches.ai API availability...")
-    if not client.check_health():
-        logger.warning(
-            f"Could not verify API at {args.api_url}. "
-            "Proceeding anyway, but transcription may fail."
-        )
-    else:
-        logger.info("API is available ✓")
+    # Skip API health check at startup - connection will drop anyway
+    # We do a warmup right before transcription instead
+    logger.info(f"API configured: {args.api_url}")
     
     temp_wav = None
     temp_opus = None
@@ -225,6 +219,10 @@ Examples:
         
         # Transcribe
         print("🌐 Sending to speaches.ai for transcription...")
+        # Warm up connection right before transcription to avoid dropped connections
+        logger.debug("Warming up connection...")
+        client.check_health()
+        
         result = client.transcribe(
             temp_opus,
             language=args.language,

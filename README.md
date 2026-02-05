@@ -5,6 +5,7 @@ Audio recording to speech-to-text script using speaches.ai API. Record audio fro
 ## Features
 
 - 🎤 **Audio Recording**: Record from any audio input device using sounddevice
+- 🖥️ **GUI & CLI Modes**: Choose between graphical interface or command-line interface
 - 🎙️ **Voice Activity Detection (VAD)**: Optional silence filtering using Silero VAD
 - 🗜️ **Smart Compression**: Automatic silence removal and Opus encoding with ffmpeg
 - 🚀 **Fast Transcription**: Uses speaches.ai (OpenAI-compatible API) with faster-whisper
@@ -65,6 +66,31 @@ docker run -d -p 8000:8000 ghcr.io/speaches-ai/speaches:latest
 ```
 
 ## Usage
+
+### GUI Mode (Recommended for Windows)
+
+Launch the graphical interface:
+
+```powershell
+python speakpy_gui.py
+```
+
+The GUI provides:
+- **Simple Interface**: Click "Start Recording" button to begin, "Stop Recording" to finish
+- **Live Activity Log**: See real-time feedback about recording and processing status
+- **Transcription Display**: View transcription results in a dedicated text area
+- **Copy to Clipboard**: One-click button to copy transcription text
+- **Status Indicators**: Visual feedback showing current application state (Ready/Recording/Processing)
+
+**GUI Controls:**
+- Click **Start Recording** to begin capturing audio
+- Speak clearly into your microphone
+- Click **Stop Recording** when finished
+- Wait for processing and transcription to complete
+- Use **Copy to Clipboard** to copy the transcription text
+- Use **Clear** to reset the transcription area
+
+### Command-Line Mode
 
 ### List Available Audio Devices
 
@@ -191,6 +217,7 @@ Arguments:
 ```
 speakpy/
 ├── speakpy.py              # Main CLI script
+├── speakpy_gui.py          # GUI entry point
 ├── pyproject.toml          # Project configuration
 ├── README.md               # This file
 ├── src/
@@ -199,6 +226,7 @@ speakpy/
 │   ├── audio_compressor.py # FFmpeg compression
 │   ├── api_client.py       # Speaches.ai API client
 │   ├── vad_processor.py    # Voice Activity Detection (Silero VAD)
+│   ├── gui.py              # GUI components (tkinter)
 │   └── utils.py            # Helper functions
 └── ffmpeg/                 # Optional: portable ffmpeg
     └── bin/

@@ -2,9 +2,12 @@
 
 import logging
 import requests
+import time
 from typing import Optional, Dict, Any
 from pathlib import Path
 
+# import http.client
+# http.client.HTTPConnection.debuglevel = 1
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +26,28 @@ class SpeachesClient:
             base_url: Base URL of the speaches.ai server
             model: Model name to use for transcription
         """
+
+        # You must initialize logging, otherwise you'll not see debug output.
+        # logging.basicConfig()
+        # logging.getLogger().setLevel(logging.DEBUG)
+        # requests_log = logging.getLogger("requests.packages.urllib3")
+        # requests_log.setLevel(logging.DEBUG)
+        # requests_log.propagate = True
+
         self.base_url = base_url.rstrip('/')
         self.model = model
         self.transcription_endpoint = f"{self.base_url}/v1/audio/transcriptions"
+        
+        # Use persistent session for connection pooling
+        self.session = requests.Session()
+        
+        # Add curl-like headers for better compatibility
+        self.session.headers.update({
+            'User-Agent': 'speakpy/1.0',
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive'
+        })
     
     def transcribe(
         self,
@@ -47,10 +69,14 @@ class SpeachesClient:
             RuntimeError: If the API request fails
         """
         try:
+            start_time = time.time()
+            file_size = Path(audio_file_path).stat().st_size / 1024  # KB
             logger.info(f"Sending audio to speaches.ai API: {self.transcription_endpoint}")
+            logger.info(f"File size: {file_size:.2f} KB")
             logger.debug(f"Using model: {self.model}")
             
             # Prepare the multipart form data
+            upload_start = time.time()
             with open(audio_file_path, 'rb') as audio_file:
                 files = {
                     'file': (Path(audio_file_path).name, audio_file, 'audio/opus')
@@ -65,12 +91,17 @@ class SpeachesClient:
                     data['language'] = language
                 
                 # Make the API request
-                response = requests.post(
+                logger.debug(f"Upload prepared in {time.time() - upload_start:.2f}s")
+                request_start = time.time()
+                response = self.session.post(
                     self.transcription_endpoint,
                     files=files,
                     data=data,
-                    timeout=30
+                    # timeout=15
                 )
+            
+            request_time = time.time() - request_start
+            logger.debug(f"API request completed in {request_time:.2f}s")
             
             # Check response status
             if response.status_code != 200:
@@ -82,10 +113,13 @@ class SpeachesClient:
             # Parse response
             if response_format == "json":
                 result = response.json()
-                logger.info("Transcription completed successfully")
+                total_time = time.time() - start_time
+                logger.info(f"Transcription completed successfully (total: {total_time:.2f}s, request: {request_time:.2f}s)")
                 return result
             else:
                 # For text/srt/vtt formats, return as text
+                total_time = time.time() - start_time
+                logger.info(f"Transcription completed successfully (total: {total_time:.2f}s, request: {request_time:.2f}s)")
                 return {"text": response.text}
             
         except requests.exceptions.ConnectionError as e:
@@ -109,12 +143,12 @@ class SpeachesClient:
         """
         try:
             # Try to reach the base URL
-            response = requests.get(f"{self.base_url}/health", timeout=5)
+            response = self.session.get(f"{self.base_url}/health", timeout=1)
             return response.status_code == 200
         except:
             try:
                 # Fallback: try the docs endpoint
-                response = requests.get(f"{self.base_url}/docs", timeout=5)
+                response = self.session.get(f"{self.base_url}/docs", timeout=1)
                 return response.status_code == 200
             except:
                 return False

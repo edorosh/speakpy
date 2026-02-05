@@ -27,22 +27,25 @@ class AudioRecorder:
     def list_devices() -> List[Dict]:
         """List all available audio input devices.
         
+        Uses sounddevice's built-in filtering to get input devices.
+        
         Returns:
             List of device information dictionaries
         """
-        devices = sd.query_devices()
-        input_devices = []
+        # Get only input devices
+        input_devices = sd.query_devices(kind='input')
         
-        for idx, device in enumerate(devices):
-            if device['max_input_channels'] > 0:
-                input_devices.append({
-                    'index': idx,
-                    'name': device['name'],
-                    'channels': device['max_input_channels'],
-                    'sample_rate': device['default_samplerate']
-                })
+        # Convert to list if single device
+        if isinstance(input_devices, dict):
+            input_devices = [input_devices]
         
-        return input_devices
+        # Format devices with required fields
+        return [{
+            'index': device['index'],
+            'name': device['name'].strip(),
+            'channels': device['max_input_channels'],
+            'sample_rate': device['default_samplerate']
+        } for device in input_devices]
     
     @staticmethod
     def print_devices() -> None:
