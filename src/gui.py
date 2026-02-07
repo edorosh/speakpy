@@ -73,6 +73,9 @@ class SpeakPyGUI:
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         
+        # Override iconify to hide to tray instead
+        self._setup_minimize_handler()
+        
         # Start hidden if requested
         if self.start_in_tray:
             self.root.withdraw()
@@ -482,15 +485,36 @@ class SpeakPyGUI:
             self.tray_icon.stop()
         self.root.after(0, self.root.destroy)
     
+    def _setup_minimize_handler(self):
+        """Setup handler to monitor window state and prevent minimize to taskbar."""
+        # Start monitoring window state
+        self._monitor_window_state()
+    
+    def _monitor_window_state(self):
+        """Monitor window state and hide to tray if minimized."""
+        try:
+            # Check if window is being iconified (minimized)
+            if self.is_visible and self.root.state() == 'iconic':
+                # Window was just minimized - immediately withdraw it
+                self.root.withdraw()
+                self.is_visible = False
+                logging.debug("Window minimized - hidden to tray")
+        except tk.TclError:
+            # Window might be destroyed
+            pass
+        
+        # Continue monitoring every 100ms
+        self.root.after(100, self._monitor_window_state)
+    
     def _on_closing(self):
         """Handle window close event."""
         if self.is_recording:
             if messagebox.askokcancel("Quit", "Recording in progress. Do you want to quit?"):
                 self._stop_recording()
-                self._hide_window()
+                self.root.after(100, self._tray_exit)  # Small delay to ensure recording stops
         else:
-            # Minimize to tray instead of closing
-            self._hide_window()
+            # Actually close the application
+            self._tray_exit()
     
     def _show_notification(self, title: str, message: str):
         """Show a Windows toast notification.

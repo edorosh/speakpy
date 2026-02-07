@@ -72,7 +72,11 @@ docker run -d -p 8000:8000 ghcr.io/speaches-ai/speaches:latest
 Launch the graphical interface:
 
 ```powershell
+# Start with visible window
 python speakpy_gui.py
+
+# Start minimized to system tray
+python speakpy_gui.py --tray
 ```
 
 The GUI provides:
@@ -81,6 +85,8 @@ The GUI provides:
 - **Transcription Display**: View transcription results in a dedicated text area
 - **Copy to Clipboard**: One-click button to copy transcription text
 - **Auto-Paste**: Automatically paste transcribed text into other applications (no admin rights required)
+- **System Tray Integration**: Minimize to tray, control from system tray icon
+- **Global Hotkey**: Press Ctrl+Shift+; to toggle recording from anywhere
 - **Status Indicators**: Visual feedback showing current application state (Ready/Recording/Processing)
 
 **GUI Controls:**
@@ -91,6 +97,15 @@ The GUI provides:
 - Use **Copy to Clipboard** to copy the transcription text
 - Enable **Auto copy to clipboard** checkbox to automatically paste text into focused applications
 - Use **Clear** to reset the transcription area
+
+**Window Management:**
+- **Close (X) Button**: Exits the application completely
+- **Minimize (-) Button**: Hides window to system tray (keeps running in background)
+- **System Tray Icon**: Right-click for menu options:
+  - Show Window: Restore the main window
+  - Start Recording: Toggle recording from tray
+  - Exit: Close the application
+- **Global Hotkey**: Press **Ctrl+Shift+;** anywhere to toggle recording (even when minimized)
 
 **Auto-Paste Feature:**
 When the "Auto copy to clipboard" checkbox is enabled, transcribed text will automatically:
