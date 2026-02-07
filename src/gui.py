@@ -377,7 +377,43 @@ class SpeakPyGUI:
         if text:
             self.root.clipboard_clear()
             self.root.clipboard_append(text)
-            self.status_label.config(text="Copied to clipboard!", foreground="blue")
+            
+            # Auto-paste if enabled
+            if self.auto_copy.get():
+                self.status_label.config(text="Copied and pasting...", foreground="blue")
+                # Delay paste slightly to ensure clipboard is ready
+                self.root.after(150, self._auto_paste)
+            else:
+                self.status_label.config(text="Copied to clipboard!", foreground="blue")
+                self.root.after(2000, lambda: self.status_label.config(text="Ready", foreground="green"))
+    
+    def _auto_paste(self):
+        """Automatically paste the clipboard content using keyboard simulation.
+        
+        This simulates Ctrl+V keypress to paste into the currently focused application.
+        Works without admin rights on Windows.
+        """
+        try:
+            from pynput.keyboard import Controller, Key
+            
+            # Create keyboard controller
+            keyboard = Controller()
+            
+            # Simulate Ctrl+V
+            keyboard.press(Key.ctrl)
+            keyboard.press('v')
+            keyboard.release('v')
+            keyboard.release(Key.ctrl)
+            
+            # Update status
+            self.status_label.config(text="Copied and pasted!", foreground="blue")
+            self.root.after(2000, lambda: self.status_label.config(text="Ready", foreground="green"))
+            
+            logging.debug("Auto-paste completed successfully")
+            
+        except Exception as e:
+            logging.error(f"Auto-paste failed: {e}")
+            self.status_label.config(text="Copied (paste failed)", foreground="orange")
             self.root.after(2000, lambda: self.status_label.config(text="Ready", foreground="green"))
     
     def _clear_transcription(self):

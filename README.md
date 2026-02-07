@@ -80,6 +80,7 @@ The GUI provides:
 - **Live Activity Log**: See real-time feedback about recording and processing status
 - **Transcription Display**: View transcription results in a dedicated text area
 - **Copy to Clipboard**: One-click button to copy transcription text
+- **Auto-Paste**: Automatically paste transcribed text into other applications (no admin rights required)
 - **Status Indicators**: Visual feedback showing current application state (Ready/Recording/Processing)
 
 **GUI Controls:**
@@ -88,7 +89,16 @@ The GUI provides:
 - Click **Stop Recording** when finished
 - Wait for processing and transcription to complete
 - Use **Copy to Clipboard** to copy the transcription text
+- Enable **Auto copy to clipboard** checkbox to automatically paste text into focused applications
 - Use **Clear** to reset the transcription area
+
+**Auto-Paste Feature:**
+When the "Auto copy to clipboard" checkbox is enabled, transcribed text will automatically:
+1. Copy to clipboard
+2. Simulate Ctrl+V keypress after 150ms
+3. Paste into whichever application has keyboard focus (e.g., Notepad, browser, Word)
+
+This works **without admin rights** using standard keyboard input simulation.
 
 ### Command-Line Mode
 
