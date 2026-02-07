@@ -31,7 +31,7 @@ class TextHandler(logging.Handler):
 class SpeakPyGUI:
     """Main GUI application for SpeakPy."""
     
-    def __init__(self, root: tk.Tk, recording_callback: Callable, stop_callback: Callable, devices: list, start_in_tray: bool = False):
+    def __init__(self, root: tk.Tk, recording_callback: Callable, stop_callback: Callable, devices: list, default_model: str = "Systran/faster-distil-whisper-large-v3", start_in_tray: bool = False):
         """Initialize the GUI.
         
         Args:
@@ -39,6 +39,7 @@ class SpeakPyGUI:
             recording_callback: Function to call when starting recording
             stop_callback: Function to call when stopping recording
             devices: List of available audio input devices
+            default_model: Default model to use for transcription
             start_in_tray: Start minimized to system tray
         """
         self.root = root
@@ -49,6 +50,7 @@ class SpeakPyGUI:
         self.auto_copy = tk.BooleanVar(value=False)
         self.devices = devices
         self.device_var = tk.StringVar()
+        self.model_var = tk.StringVar(value=default_model)
         self.start_in_tray = start_in_tray
         self.tray_icon = None
         self.is_visible = not start_in_tray
@@ -159,6 +161,17 @@ class SpeakPyGUI:
         # Set default device
         if device_names:
             self.device_dropdown.current(default_index)
+        
+        # Model selector (second row)
+        model_label = ttk.Label(button_frame, text="Model:")
+        model_label.grid(row=1, column=1, padx=(15, 5), pady=(5, 0))
+        
+        self.model_entry = ttk.Entry(
+            button_frame,
+            textvariable=self.model_var,
+            width=42
+        )
+        self.model_entry.grid(row=1, column=2, padx=5, pady=(5, 0))
         
         # Log section
         log_label = ttk.Label(main_frame, text="Activity Log:", font=("Segoe UI", 10, "bold"))
@@ -286,6 +299,14 @@ class SpeakPyGUI:
             logger.error(f"Error getting device index: {e}")
         return None
     
+    def get_model(self) -> str:
+        """Get the current model value.
+        
+        Returns:
+            Model name string
+        """
+        return self.model_var.get().strip()
+    
     def _start_recording(self):
         """Start recording in a separate thread."""
         self.is_recording = True
@@ -293,6 +314,7 @@ class SpeakPyGUI:
         self.status_label.config(text="Recording...", foreground="red")
         self.copy_button.config(state=tk.DISABLED)
         self.device_dropdown.config(state=tk.DISABLED)
+        self.model_entry.config(state=tk.DISABLED)
         
         # Clear previous transcription
         self.transcription_text.delete(1.0, tk.END)
@@ -320,8 +342,11 @@ class SpeakPyGUI:
             # Get selected device
             device_index = self.get_selected_device_index()
             
-            # Call the recording callback with device
-            result = self.recording_callback(device_index)
+            # Get current model
+            model = self.get_model()
+            
+            # Call the recording callback with device and model
+            result = self.recording_callback(device_index, model)
             
             # Update UI on main thread
             self.root.after(0, self._recording_complete, result)
@@ -340,6 +365,7 @@ class SpeakPyGUI:
         self.record_button.config(text="▶ Start Recording", style="")
         self.status_label.config(text="Ready", foreground="green")
         self.device_dropdown.config(state='readonly')
+        self.model_entry.config(state=tk.NORMAL)
         
         # Display transcription
         if result and "text" in result:
@@ -372,6 +398,7 @@ class SpeakPyGUI:
         self.record_button.config(text="▶ Start Recording", style="")
         self.status_label.config(text="Error", foreground="red")
         self.device_dropdown.config(state='readonly')
+        self.model_entry.config(state=tk.NORMAL)
         messagebox.showerror("Recording Error", f"An error occurred:\n{error_msg}")
     
     def _copy_to_clipboard(self):

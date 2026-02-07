@@ -9,6 +9,7 @@ Audio recording to speech-to-text script using speaches.ai API. Record audio fro
 - 🎙️ **Voice Activity Detection (VAD)**: Optional silence filtering using Silero VAD
 - 🗜️ **Smart Compression**: Automatic silence removal and Opus encoding with ffmpeg
 - 🚀 **Fast Transcription**: Uses speaches.ai (OpenAI-compatible API) with faster-whisper
+- 🎛️ **Editable Model Selection**: Change the transcription model on-the-fly in the GUI
 - 💻 **Windows Compatible**: Works on Windows 11 without admin rights
 - 📦 **Easy Management**: Uses modern `uv` package manager
 
@@ -97,6 +98,7 @@ The GUI provides:
 - Use **Copy to Clipboard** to copy the transcription text
 - Enable **Auto copy to clipboard** checkbox to automatically paste text into focused applications
 - Use **Clear** to reset the transcription area
+- **Model Selection**: Edit the model field to change the transcription model (takes effect on next recording)
 
 **Window Management:**
 - **Close (X) Button**: Exits the application completely

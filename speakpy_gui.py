@@ -144,17 +144,25 @@ class SpeakPyApplication:
                 logger.error(f"Failed to initialize VAD: {e}")
                 raise RuntimeError(f"Failed to initialize VAD: {e}")
     
-    def start_recording(self, device_index: Optional[int] = None) -> dict:
+    def start_recording(self, device_index: Optional[int] = None, model: Optional[str] = None) -> dict:
         """Start recording and process the audio.
         
         Args:
             device_index: Audio device index to use (None for default)
+            model: Model to use for transcription (None to use default)
         
         Returns:
             Dictionary containing transcription result
         """
         self.stop_event.clear()
         self.recording_active = True
+        
+        # Update model if specified
+        if model and model != self.model:
+            self.model = model
+            # Recreate client with new model
+            self.client = SpeachesClient(base_url=self.api_url, model=model)
+            logger.info(f"Using model: {model}")
         
         # Update device if specified
         if device_index is not None:
@@ -426,6 +434,7 @@ def main():
         recording_callback=app.start_recording,
         stop_callback=app.stop_recording,
         devices=devices,
+        default_model=args.model,
         start_in_tray=args.tray
     )
     
