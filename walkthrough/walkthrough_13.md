@@ -8,6 +8,7 @@ This walkthrough documents the removal of the specific CLI version (`speakpy.py`
 
 - **Deleted**: `speakpy.py` - The command-line interface script has been removed.
 - **Cleanup**: Removed unused methods from `src/audio_recorder.py` and `src/utils.py` that were only used by the CLI.
+- **Configuration**: Removed `speakpy` CLI entry point from `pyproject.toml`.
 
 ### Documentation Updates
 
@@ -19,6 +20,7 @@ This walkthrough documents the removal of the specific CLI version (`speakpy.py`
 #### Automated Checks
 - Ran `python speakpy_gui.py --help` to verify the application can import all necessary modules and parse arguments without errors.
 - Verified that `src/audio_recorder.py` and `src/utils.py` were cleaned up correctly without breaking existing functionality.
+- Verified removal of `speakpy` script entry in `pyproject.toml`.
 
 #### Manual Verification Required
 - [ ] Launch the GUI application: `python speakpy_gui.py`

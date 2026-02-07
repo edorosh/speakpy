@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-speakpy = "speakpy:main"
+
 speakpy-gui = "speakpy_gui:main"
 
 [build-system]
