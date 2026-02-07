@@ -31,7 +31,7 @@ class TextHandler(logging.Handler):
 class SpeakPyGUI:
     """Main GUI application for SpeakPy."""
     
-    def __init__(self, root: tk.Tk, recording_callback: Callable, stop_callback: Callable, devices: list):
+    def __init__(self, root: tk.Tk, recording_callback: Callable, stop_callback: Callable, devices: list, start_in_tray: bool = False):
         """Initialize the GUI.
         
         Args:
@@ -39,6 +39,7 @@ class SpeakPyGUI:
             recording_callback: Function to call when starting recording
             stop_callback: Function to call when stopping recording
             devices: List of available audio input devices
+            start_in_tray: Start minimized to system tray
         """
         self.root = root
         self.recording_callback = recording_callback
@@ -48,6 +49,9 @@ class SpeakPyGUI:
         self.auto_copy = tk.BooleanVar(value=False)
         self.devices = devices
         self.device_var = tk.StringVar()
+        self.start_in_tray = start_in_tray
+        self.tray_icon = None
+        self.is_visible = not start_in_tray
         
         # Configure root window
         self.root.title("SpeakPy - Voice Recorder & Transcription")
@@ -63,8 +67,16 @@ class SpeakPyGUI:
         # Start queue polling
         self._poll_log_queue()
         
+        # Setup system tray
+        self._setup_tray()
+        
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+        
+        # Start hidden if requested
+        if self.start_in_tray:
+            self.root.withdraw()
+            self.is_visible = False
     
     def _setup_ui(self):
         """Setup all UI components."""
@@ -90,6 +102,15 @@ class SpeakPyGUI:
             font=("Segoe UI", 14, "bold")
         )
         title_label.grid(row=0, column=0, sticky=tk.W)
+        
+        # Hotkey hint
+        hotkey_label = ttk.Label(
+            title_frame,
+            text="Hotkey: Ctrl+Shift+;",
+            font=("Segoe UI", 9),
+            foreground="gray"
+        )
+        hotkey_label.grid(row=1, column=0, sticky=tk.W)
         
         self.status_label = ttk.Label(
             title_frame,
@@ -273,6 +294,9 @@ class SpeakPyGUI:
         # Clear previous transcription
         self.transcription_text.delete(1.0, tk.END)
         
+        # Show toast notification
+        self._show_notification("Recording Started", "Speak now to record audio")
+        
         # Start recording in separate thread
         self.recording_thread = threading.Thread(
             target=self._recording_worker,
@@ -284,6 +308,7 @@ class SpeakPyGUI:
         """Stop the current recording."""
         if self.is_recording and self.stop_callback:
             self.status_label.config(text="Stopping...", foreground="orange")
+            self._show_notification("Recording Stopped", "Processing audio...")
             self.stop_callback()
     
     def _recording_worker(self):
@@ -318,6 +343,11 @@ class SpeakPyGUI:
             self.transcription_text.delete(1.0, tk.END)
             self.transcription_text.insert(1.0, result["text"])
             self.copy_button.config(state=tk.NORMAL)
+            
+            # Show notification with preview
+            preview = result["text"][:100] + "..." if len(result["text"]) > 100 else result["text"]
+            self._show_notification("Transcription Complete", preview)
+            
             # Auto-copy if enabled
             if self.auto_copy.get():
                 self._copy_to_clipboard()
@@ -355,14 +385,96 @@ class SpeakPyGUI:
         self.transcription_text.delete(1.0, tk.END)
         self.copy_button.config(state=tk.DISABLED)
     
+    def _setup_tray(self):
+        """Setup system tray icon."""
+        try:
+            import pystray
+            
+            # Get icon from speakpy_gui module
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            import speakpy_gui
+            
+            # Create icon dynamically
+            icon_image = speakpy_gui.create_tray_icon()
+            
+            # Create menu
+            menu = pystray.Menu(
+                pystray.MenuItem("Show Window", self._show_window, default=True),
+                pystray.MenuItem("Start Recording", self._tray_toggle_recording),
+                pystray.MenuItem("Exit", self._tray_exit)
+            )
+            
+            # Create tray icon
+            self.tray_icon = pystray.Icon(
+                "SpeakPy",
+                icon_image,
+                "SpeakPy Voice Recorder",
+                menu
+            )
+            
+            # Start tray in separate thread
+            threading.Thread(target=self.tray_icon.run, daemon=True).start()
+            
+        except Exception as e:
+            logging.error(f"Failed to setup system tray: {e}")
+    
+    def _show_window(self, icon=None, item=None):
+        """Show the main window (thread-safe)."""
+        self.root.after(0, self._do_show_window)
+    
+    def _do_show_window(self):
+        """Actually show the window (must run in main thread)."""
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        self.is_visible = True
+    
+    def _hide_window(self):
+        """Hide window to tray."""
+        self.root.withdraw()
+        self.is_visible = False
+    
+    def _tray_toggle_recording(self, icon=None, item=None):
+        """Toggle recording from tray menu (thread-safe)."""
+        self.root.after(0, self._toggle_recording)
+    
+    def _tray_exit(self, icon=None, item=None):
+        """Exit application from tray."""
+        if self.tray_icon:
+            self.tray_icon.stop()
+        self.root.after(0, self.root.destroy)
+    
     def _on_closing(self):
         """Handle window close event."""
         if self.is_recording:
             if messagebox.askokcancel("Quit", "Recording in progress. Do you want to quit?"):
                 self._stop_recording()
-                self.root.destroy()
+                self._hide_window()
         else:
-            self.root.destroy()
+            # Minimize to tray instead of closing
+            self._hide_window()
+    
+    def _show_notification(self, title: str, message: str):
+        """Show a Windows toast notification.
+        
+        Args:
+            title: Notification title
+            message: Notification message
+        """
+        try:
+            from winotify import Notification
+            
+            toast = Notification(
+                app_id="SpeakPy",
+                title=title,
+                msg=message,
+                duration="short"
+            )
+            toast.show()
+        except Exception as e:
+            logging.debug(f"Failed to show notification: {e}")
     
     def run(self):
         """Start the GUI main loop."""

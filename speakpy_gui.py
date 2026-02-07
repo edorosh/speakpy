@@ -11,6 +11,8 @@ import logging
 from pathlib import Path
 import threading
 from typing import Optional
+import queue
+import argparse
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -21,6 +23,29 @@ from src.api_client import SpeachesClient
 from src.utils import setup_logging, get_temp_audio_file, cleanup_file
 from src.vad_processor import VADProcessor, StreamingVAD
 from src.gui import SpeakPyGUI
+
+
+def create_tray_icon():
+    """Create a simple tray icon image dynamically.
+    
+    Returns:
+        PIL.Image: 16x16 microphone icon
+    """
+    from PIL import Image, ImageDraw
+    
+    # Create a 16x16 image with transparent background
+    img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Draw a simple microphone icon (circle with line)
+    # Microphone body (circle)
+    draw.ellipse([5, 2, 11, 10], fill=(70, 130, 180), outline=(50, 100, 150))
+    # Microphone stand
+    draw.rectangle([7, 10, 9, 14], fill=(70, 130, 180))
+    # Microphone base
+    draw.rectangle([5, 14, 11, 15], fill=(70, 130, 180))
+    
+    return img
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +62,8 @@ class SpeakPyApplication:
                  language: str | None = None,
                  use_vad: bool = False,
                  vad_threshold: float = 0.5,
-                 keep_files: bool = False):
+                 keep_files: bool = False,
+                 gui_toggle_callback: Optional[callable] = None):
         """Initialize the application.
         
         Args:
@@ -58,6 +84,7 @@ class SpeakPyApplication:
         self.use_vad = use_vad
         self.vad_threshold = vad_threshold
         self.keep_files = keep_files
+        self.gui_toggle_callback = gui_toggle_callback
         
         # Recording state
         self.recording_active = False
@@ -65,6 +92,10 @@ class SpeakPyApplication:
         self.audio_data = None
         self.temp_wav = None
         self.temp_opus = None
+        
+        # Hotkey support
+        self.hotkey_listener = None
+        self.hotkey_queue = queue.Queue()
         
         # Initialize components
         self.recorder = AudioRecorder(sample_rate=sample_rate, channels=1)
@@ -74,6 +105,9 @@ class SpeakPyApplication:
         
         # Check components
         self._check_components()
+        
+        # Start global hotkey listener
+        self._start_hotkey_listener()
     
     def _check_components(self):
         """Check if required components are available."""
@@ -285,25 +319,60 @@ class SpeakPyApplication:
                 logger.info(f"Kept temporary WAV file: {self.temp_wav}")
             if self.temp_opus:
                 logger.info(f"Kept temporary Opus file: {self.temp_opus}")
+    
+    def _start_hotkey_listener(self):
+        """Start the global hotkey listener."""
+        try:
+            from pynput import keyboard
+            
+            def on_hotkey():
+                """Handle hotkey press."""
+                self.hotkey_queue.put('toggle')
+                logger.debug("Global hotkey pressed (Ctrl+Shift+;)")
+            
+            # Create hotkey listener (Ctrl+Shift+;)
+            self.hotkey_listener = keyboard.GlobalHotKeys({
+                '<ctrl>+<shift>+;': on_hotkey
+            })
+            self.hotkey_listener.start()
+            logger.info("Global hotkey registered: Ctrl+Shift+;")
+        except Exception as e:
+            logger.warning(f"Failed to register global hotkey: {e}")
+    
+    def check_hotkey_queue(self):
+        """Check and process hotkey queue (called from GUI main thread)."""
+        try:
+            while True:
+                action = self.hotkey_queue.get_nowait()
+                if action == 'toggle' and self.gui_toggle_callback:
+                    self.gui_toggle_callback()
+        except queue.Empty:
+            pass
+    
+    def cleanup(self):
+        """Clean up resources."""
+        if self.hotkey_listener:
+            self.hotkey_listener.stop()
+            logger.info("Global hotkey listener stopped")
 
 
 def main():
     """Main entry point for the GUI application."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='SpeakPy GUI - Voice Recorder & Transcription')
+    parser.add_argument('--tray', action='store_true', help='Start minimized to system tray')
+    parser.add_argument('--api-url', default='http://localhost:8000', help='Speaches.ai API URL')
+    parser.add_argument('--model', default='Systran/faster-distil-whisper-large-v3', help='Transcription model')
+    parser.add_argument('--vad', action='store_true', help='Enable Voice Activity Detection')
+    parser.add_argument('--vad-threshold', type=float, default=0.5, help='VAD sensitivity threshold')
+    parser.add_argument('--keep-files', action='store_true', help='Keep temporary audio files')
+    args = parser.parse_args()
+    
     # Setup logging
     setup_logging(logging.INFO)
     
-    # Create application instance
-    # You can modify these defaults or add command-line parsing
-    app = SpeakPyApplication(
-        api_url="http://localhost:8000",
-        model="Systran/faster-distil-whisper-large-v3",
-        sample_rate=44100,
-        device=None,  # Use default device
-        language=None,  # Auto-detect
-        use_vad=False,  # Disable VAD by default
-        vad_threshold=0.5,
-        keep_files=False
-    )
+    # Create root window first (needed for gui_toggle_callback)
+    root = tk.Tk()
     
     # Get available audio devices
     import sounddevice as sd
@@ -322,20 +391,55 @@ def main():
         print("Error: No audio input devices found!")
         return 1
     
+    # GUI toggle callback placeholder (will be set after GUI creation)
+    gui_toggle_ref = {'callback': None}
+    
+    def gui_toggle_wrapper():
+        if gui_toggle_ref['callback']:
+            gui_toggle_ref['callback']()
+    
+    # Create application instance
+    app = SpeakPyApplication(
+        api_url=args.api_url,
+        model=args.model,
+        sample_rate=44100,
+        device=None,  # Use default device
+        language=None,  # Auto-detect
+        use_vad=args.vad,
+        vad_threshold=args.vad_threshold,
+        keep_files=args.keep_files,
+        gui_toggle_callback=gui_toggle_wrapper
+    )
+    
     # Create GUI
-    root = tk.Tk()
     gui = SpeakPyGUI(
         root=root,
         recording_callback=app.start_recording,
         stop_callback=app.stop_recording,
-        devices=devices
+        devices=devices,
+        start_in_tray=args.tray
     )
     
+    # Set GUI toggle callback
+    gui_toggle_ref['callback'] = gui._toggle_recording
+    
     logger.info("SpeakPy GUI started")
-    print("SpeakPy GUI Ready! Click 'Start Recording' to begin.")
+    if not args.tray:
+        print("SpeakPy GUI Ready! Click 'Start Recording' to begin.")
+        print("Global hotkey: Ctrl+Shift+; to toggle recording")
+    
+    # Poll hotkey queue
+    def poll_hotkey():
+        app.check_hotkey_queue()
+        root.after(100, poll_hotkey)
+    
+    poll_hotkey()
     
     # Run GUI
-    gui.run()
+    try:
+        gui.run()
+    finally:
+        app.cleanup()
     
     return 0
 

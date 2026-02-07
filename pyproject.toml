@@ -12,6 +12,10 @@ dependencies = [
     "torch>=2.0.0",
     "torchaudio>=2.0.0",
     "packaging>=20.0",
+    "pynput>=1.7.6",
+    "pystray>=0.19.4",
+    "pillow>=9.0.0",
+    "winotify>=1.1.0",
 ]
 
 [project.scripts]
