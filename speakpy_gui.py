@@ -23,6 +23,7 @@ from src.api_client import SpeachesClient
 from src.utils import setup_logging, get_temp_audio_file, cleanup_file
 from src.vad_processor import VADProcessor, StreamingVAD
 from src.gui import SpeakPyGUI
+from src.single_instance import SingleInstance
 
 
 def create_tray_icon():
@@ -358,6 +359,14 @@ class SpeakPyApplication:
 
 def main():
     """Main entry point for the GUI application."""
+    # Check for single instance before doing anything else
+    try:
+        instance_lock = SingleInstance()
+    except RuntimeError as e:
+        # Another instance is already running
+        print(f"\n❌ Error: {e}\n", file=sys.stderr)
+        return 1
+    
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='SpeakPy GUI - Voice Recorder & Transcription')
     parser.add_argument('--tray', action='store_true', help='Start minimized to system tray')
@@ -440,6 +449,7 @@ def main():
         gui.run()
     finally:
         app.cleanup()
+        instance_lock.close()
     
     return 0
 

@@ -16,6 +16,7 @@ dependencies = [
     "pystray>=0.19.4",
     "pillow>=9.0.0",
     "winotify>=1.1.0",
+    "pywin32>=306",
 ]
 
 [project.scripts]
