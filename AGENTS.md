@@ -77,6 +77,24 @@
 
 ---
 
+## Development Workflow
+
+### Virtual Environment
+
+**CRITICAL**: Always initialize the virtual environment before running Python commands.
+
+- **Windows**: `.venv\Scripts\Activate.ps1` (PowerShell) or `.venv\Scripts\activate.bat` (CMD)
+- **Linux/macOS**: `source .venv/bin/activate`
+
+This ensures:
+1. Dependencies match the project's requirements.txt
+2. No conflicts with system-wide Python packages
+3. Consistent behavior across different development environments
+
+**Before running any Python script** (speakpy.py, speakpy_gui.py, tests), verify the virtual environment is active by checking for `(.venv)` prefix in your shell prompt.
+
+---
+
 ## Common Pitfalls
 
 1. **VAD sample rate mismatch**: VAD expects 16kHz but recorder uses 44.1kHz. [VADProcessor.resample_audio()](src/vad_processor.py#L88) handles this - don't bypass it.
