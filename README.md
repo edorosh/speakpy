@@ -6,7 +6,7 @@ Audio recording to speech-to-text script using speaches.ai API. Record audio fro
 
 - 🎤 **Audio Recording**: Record from any audio input device using sounddevice
 - 🖥️ **GUI & CLI Modes**: Choose between graphical interface or command-line interface
-- 🎙️ **Voice Activity Detection (VAD)**: Optional silence filtering using Silero VAD
+- 🎙️ **Voice Activity Detection (VAD)**: Optional filtering using Silero VAD with dynamic GUI controls
 - 🗜️ **Smart Compression**: Automatic silence removal and Opus encoding with ffmpeg
 - 🚀 **Fast Transcription**: Uses speaches.ai (OpenAI-compatible API) with faster-whisper
 - 🎛️ **Editable Model Selection**: Change the transcription model on-the-fly in the GUI
@@ -99,6 +99,8 @@ The GUI provides:
 - Enable **Auto copy to clipboard** checkbox to automatically paste text into focused applications
 - Use **Clear** to reset the transcription area
 - **Model Selection**: Edit the model field to change the transcription model (takes effect on next recording)
+- **Enable VAD Filtering**: Checkbox to toggle Voice Activity Detection (silence filtering) for the next recording
+- **VAD Threshold**: Slider to adjust detection sensitivity (0.0-1.0) on-the-fly
 
 **Window Management:**
 - **Close (X) Button**: Exits the application completely
@@ -143,9 +145,11 @@ python speakpy.py --device 1
 
 ```powershell
 # Enable Voice Activity Detection (only record speech, skip silence)
+# In GUI mode, this sets the checkbox to Checked by default
 python speakpy.py --vad
 
 # Adjust VAD sensitivity (lower = more sensitive)
+# In GUI mode, this sets the default slider position
 python speakpy.py --vad --vad-threshold 0.3
 
 # Specify language for better accuracy

@@ -31,7 +31,11 @@ class TextHandler(logging.Handler):
 class SpeakPyGUI:
     """Main GUI application for SpeakPy."""
     
-    def __init__(self, root: tk.Tk, recording_callback: Callable, stop_callback: Callable, devices: list, default_model: str = "Systran/faster-distil-whisper-large-v3", start_in_tray: bool = False):
+    def __init__(self, root: tk.Tk, recording_callback: Callable, stop_callback: Callable, devices: list, 
+                 default_model: str = "Systran/faster-distil-whisper-large-v3", 
+                 default_vad_enabled: bool = False,
+                 default_vad_threshold: float = 0.5,
+                 start_in_tray: bool = False):
         """Initialize the GUI.
         
         Args:
@@ -40,6 +44,8 @@ class SpeakPyGUI:
             stop_callback: Function to call when stopping recording
             devices: List of available audio input devices
             default_model: Default model to use for transcription
+            default_vad_enabled: Default VAD enabled state
+            default_vad_threshold: Default VAD threshold
             start_in_tray: Start minimized to system tray
         """
         self.root = root
@@ -51,6 +57,8 @@ class SpeakPyGUI:
         self.devices = devices
         self.device_var = tk.StringVar()
         self.model_var = tk.StringVar(value=default_model)
+        self.vad_enabled = tk.BooleanVar(value=default_vad_enabled)
+        self.vad_threshold = tk.DoubleVar(value=default_vad_threshold)
         self.start_in_tray = start_in_tray
         self.tray_icon = None
         self.is_visible = not start_in_tray
@@ -172,6 +180,40 @@ class SpeakPyGUI:
             width=42
         )
         self.model_entry.grid(row=1, column=2, padx=5, pady=(5, 0))
+        
+        # VAD checkbox (third row)
+        self.vad_checkbox = ttk.Checkbutton(
+            button_frame,
+            text="Enable VAD Filtering",
+            variable=self.vad_enabled
+        )
+        self.vad_checkbox.grid(row=2, column=1, columnspan=2, sticky=tk.W, padx=(15, 5), pady=(5, 0))
+        
+        # VAD threshold slider (fourth row)
+        vad_threshold_label = ttk.Label(button_frame, text="VAD Threshold:")
+        vad_threshold_label.grid(row=3, column=1, padx=(15, 5), pady=(5, 0), sticky=tk.W)
+        
+        vad_threshold_frame = ttk.Frame(button_frame)
+        vad_threshold_frame.grid(row=3, column=2, padx=5, pady=(5, 0), sticky=(tk.W, tk.E))
+        
+        self.vad_threshold_scale = ttk.Scale(
+            vad_threshold_frame,
+            from_=0.0,
+            to=1.0,
+            orient=tk.HORIZONTAL,
+            variable=self.vad_threshold,
+            command=self._update_threshold_label
+        )
+        self.vad_threshold_scale.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        vad_threshold_frame.columnconfigure(0, weight=1)
+        
+        self.vad_threshold_value_label = ttk.Label(
+            vad_threshold_frame,
+            text=f"{self.vad_threshold.get():.2f}",
+            width=4,
+            font=("Segoe UI", 9)
+        )
+        self.vad_threshold_value_label.grid(row=0, column=1, padx=(5, 0))
         
         # Log section
         log_label = ttk.Label(main_frame, text="Activity Log:", font=("Segoe UI", 10, "bold"))
@@ -307,6 +349,30 @@ class SpeakPyGUI:
         """
         return self.model_var.get().strip()
     
+    def get_vad_enabled(self) -> bool:
+        """Get whether VAD is enabled.
+        
+        Returns:
+            True if VAD checkbox is checked
+        """
+        return self.vad_enabled.get()
+    
+    def get_vad_threshold(self) -> float:
+        """Get the current VAD threshold value.
+        
+        Returns:
+            VAD threshold (0.0 to 1.0)
+        """
+        return self.vad_threshold.get()
+    
+    def _update_threshold_label(self, value):
+        """Update the threshold value label.
+        
+        Args:
+            value: Current threshold value from scale
+        """
+        self.vad_threshold_value_label.config(text=f"{float(value):.2f}")
+    
     def _start_recording(self):
         """Start recording in a separate thread."""
         self.is_recording = True
@@ -315,6 +381,8 @@ class SpeakPyGUI:
         self.copy_button.config(state=tk.DISABLED)
         self.device_dropdown.config(state=tk.DISABLED)
         self.model_entry.config(state=tk.DISABLED)
+        self.vad_checkbox.config(state=tk.DISABLED)
+        self.vad_threshold_scale.config(state=tk.DISABLED)
         
         # Clear previous transcription
         self.transcription_text.delete(1.0, tk.END)
@@ -345,8 +413,17 @@ class SpeakPyGUI:
             # Get current model
             model = self.get_model()
             
-            # Call the recording callback with device and model
-            result = self.recording_callback(device_index, model)
+            # Get VAD settings
+            use_vad = self.get_vad_enabled()
+            vad_threshold = self.get_vad_threshold()
+            
+            # Call the recording callback with device, model and VAD settings
+            result = self.recording_callback(
+                device_index=device_index, 
+                model=model,
+                use_vad=use_vad,
+                vad_threshold=vad_threshold
+            )
             
             # Update UI on main thread
             self.root.after(0, self._recording_complete, result)
@@ -366,6 +443,8 @@ class SpeakPyGUI:
         self.status_label.config(text="Ready", foreground="green")
         self.device_dropdown.config(state='readonly')
         self.model_entry.config(state=tk.NORMAL)
+        self.vad_checkbox.config(state=tk.NORMAL)
+        self.vad_threshold_scale.config(state=tk.NORMAL)
         
         # Display transcription
         if result and "text" in result:
@@ -399,6 +478,8 @@ class SpeakPyGUI:
         self.status_label.config(text="Error", foreground="red")
         self.device_dropdown.config(state='readonly')
         self.model_entry.config(state=tk.NORMAL)
+        self.vad_checkbox.config(state=tk.NORMAL)
+        self.vad_threshold_scale.config(state=tk.NORMAL)
         messagebox.showerror("Recording Error", f"An error occurred:\n{error_msg}")
     
     def _copy_to_clipboard(self):

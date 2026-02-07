@@ -61,8 +61,6 @@ class SpeakPyApplication:
                  sample_rate: int = 44100,
                  device: int | None = None,
                  language: str | None = None,
-                 use_vad: bool = False,
-                 vad_threshold: float = 0.5,
                  keep_files: bool = False,
                  gui_toggle_callback: Optional[callable] = None):
         """Initialize the application.
@@ -73,17 +71,14 @@ class SpeakPyApplication:
             sample_rate: Recording sample rate in Hz
             device: Audio input device index
             language: Language code for transcription
-            use_vad: Enable Voice Activity Detection
-            vad_threshold: VAD sensitivity threshold
             keep_files: Keep temporary audio files
+            gui_toggle_callback: Callback for GUI toggle action
         """
         self.api_url = api_url
         self.model = model
         self.sample_rate = sample_rate
         self.device = device
         self.language = language
-        self.use_vad = use_vad
-        self.vad_threshold = vad_threshold
         self.keep_files = keep_files
         self.gui_toggle_callback = gui_toggle_callback
         
@@ -121,35 +116,46 @@ class SpeakPyApplication:
         # Skip API health check at startup - connection will drop anyway
         # We do a warmup right before transcription instead
         logger.info(f"API configured: {self.api_url}")
-        
-        # Initialize VAD if requested
-        if self.use_vad:
-            try:
-                logger.info("Initializing Voice Activity Detection...")
-                vad = VADProcessor(
-                    sample_rate=16000,
-                    threshold=self.vad_threshold
-                )
-                if not vad.is_available():
-                    logger.error("VAD is not available")
-                    VADProcessor.print_installation_instructions()
-                    raise RuntimeError("VAD is required but not available")
-                
-                self.vad_streaming = StreamingVAD(
-                    vad_processor=vad,
-                    original_sample_rate=self.sample_rate
-                )
-                logger.info(f"VAD enabled (threshold: {self.vad_threshold})")
-            except Exception as e:
-                logger.error(f"Failed to initialize VAD: {e}")
-                raise RuntimeError(f"Failed to initialize VAD: {e}")
     
-    def start_recording(self, device_index: Optional[int] = None, model: Optional[str] = None) -> dict:
+    def _initialize_vad(self, threshold: float) -> Optional[StreamingVAD]:
+        """Initialize VAD processor on-demand.
+        
+        Args:
+            threshold: VAD sensitivity threshold (0.0 to 1.0)
+        
+        Returns:
+            StreamingVAD instance or None if initialization fails
+        """
+        try:
+            logger.info(f"Initializing Voice Activity Detection (threshold: {threshold})...")
+            vad = VADProcessor(
+                sample_rate=16000,
+                threshold=threshold
+            )
+            if not vad.is_available():
+                logger.error("VAD is not available")
+                VADProcessor.print_installation_instructions()
+                return None
+            
+            vad_streaming = StreamingVAD(
+                vad_processor=vad,
+                original_sample_rate=self.sample_rate
+            )
+            logger.info(f"VAD enabled (threshold: {threshold})")
+            return vad_streaming
+        except Exception as e:
+            logger.error(f"Failed to initialize VAD: {e}")
+            return None
+    
+    def start_recording(self, device_index: Optional[int] = None, model: Optional[str] = None, 
+                        use_vad: bool = False, vad_threshold: float = 0.5) -> dict:
         """Start recording and process the audio.
         
         Args:
             device_index: Audio device index to use (None for default)
             model: Model to use for transcription (None to use default)
+            use_vad: Enable Voice Activity Detection for this recording
+            vad_threshold: VAD sensitivity threshold (0.0 to 1.0)
         
         Returns:
             Dictionary containing transcription result
@@ -169,15 +175,23 @@ class SpeakPyApplication:
             self.device = device_index
             logger.info(f"Using audio device index: {device_index}")
         
+        # Initialize or reset VAD based on checkbox
+        if use_vad:
+            self.vad_streaming = self._initialize_vad(vad_threshold)
+            if self.vad_streaming is None:
+                logger.warning("VAD initialization failed, recording without VAD")
+        else:
+            self.vad_streaming = None
+        
         result = {}
         
         try:
             # Record audio
-            vad_status = " with VAD filtering" if self.use_vad else ""
+            vad_status = " with VAD filtering" if self.vad_streaming else ""
             logger.info(f"Recording{vad_status}...")
             print(f"🎤 Recording{vad_status}... Speak now!")
             
-            if self.use_vad:
+            if self.vad_streaming:
                 print("VAD will detect and record only when you speak.")
             
             # Record with custom stop check
@@ -422,8 +436,6 @@ def main():
         sample_rate=44100,
         device=None,  # Use default device
         language=None,  # Auto-detect
-        use_vad=args.vad,
-        vad_threshold=args.vad_threshold,
         keep_files=args.keep_files,
         gui_toggle_callback=gui_toggle_wrapper
     )
@@ -435,6 +447,8 @@ def main():
         stop_callback=app.stop_recording,
         devices=devices,
         default_model=args.model,
+        default_vad_enabled=args.vad,
+        default_vad_threshold=args.vad_threshold,
         start_in_tray=args.tray
     )
     
