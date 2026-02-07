@@ -43,7 +43,6 @@
 ### Error Handling Patterns
 
 - **Raise RuntimeError** for user-facing errors (missing ffmpeg, API failures)
-- **KeyboardInterrupt**: Expected signal for stopping recordings in CLI mode - caught in [record_until_stopped()](src/audio_recorder.py#L67)
 - **Graceful degradation**: If API health check fails, log warning but continue ([speakpy_gui.py](speakpy_gui.py#L71))
 
 ### GUI-Specific Patterns
@@ -60,7 +59,7 @@
 
 **To add a new transcription model:**
 
-- Modify `--model` default in [speakpy.py](speakpy.py#L66) and [speakpy_gui.py](speakpy_gui.py#L33)
+- Modify `--model` default in [speakpy_gui.py](speakpy_gui.py#L33)
 - Update README examples
 
 **To support new audio formats:**
@@ -93,7 +92,7 @@ This ensures:
 2. No conflicts with system-wide Python packages
 3. Consistent behavior across different development environments
 
-**Before running any Python script** (speakpy.py, speakpy_gui.py, tests), verify the virtual environment is active by checking for `(.venv)` prefix in your shell prompt.
+**Before running any Python script** (speakpy_gui.py, tests), verify the virtual environment is active by checking for `(.venv)` prefix in your shell prompt.
 
 ---
 
@@ -111,7 +110,7 @@ This ensures:
 - Use `--verbose` flag to enable DEBUG logging for all modules
 - Enable `--keep-files` to inspect intermediate WAV and Opus files in temp directory
 - Check `docker logs <container_id>` for speaches.ai API errors
-- GUI logs appear in Activity Log widget; CLI logs to console with timestamps
+- GUI logs appear in Activity Log widget; console logs with timestamps
 
 ---
 

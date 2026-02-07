@@ -48,10 +48,4 @@ def cleanup_file(filepath: str) -> None:
         logging.warning(f"Failed to clean up file {filepath}: {e}")
 
 
-def ensure_directory(dirpath: str) -> None:
-    """Ensure a directory exists, creating it if necessary.
-    
-    Args:
-        dirpath: Path to directory
-    """
-    Path(dirpath).mkdir(parents=True, exist_ok=True)
+

@@ -2,14 +2,15 @@
 
 Audio recording to speech-to-text script using speaches.ai API. Record audio from your microphone, compress it with ffmpeg, and get instant transcriptions using a local speaches.ai instance.
 
+![app screenshot](assets/img/app.png)
+
 ## Features
 
 - 🎤 **Audio Recording**: Record from any audio input device using sounddevice
-- 🖥️ **GUI & CLI Modes**: Choose between graphical interface or command-line interface
-- 🎙️ **Voice Activity Detection (VAD)**: Optional filtering using Silero VAD with dynamic GUI controls
+- 🖥️ **GUI Interface**: Easy-to-use graphical interface with real-time feedback
+- 🎙️ **Voice Activity Detection (VAD)**: Optional silence filtering using Silero VAD
 - 🗜️ **Smart Compression**: Automatic silence removal and Opus encoding with ffmpeg
 - 🚀 **Fast Transcription**: Uses speaches.ai (OpenAI-compatible API) with faster-whisper
-- 🎛️ **Editable Model Selection**: Change the transcription model on-the-fly in the GUI
 - 💻 **Windows Compatible**: Works on Windows 11 without admin rights
 - 📦 **Easy Management**: Uses modern `uv` package manager
 
@@ -19,6 +20,7 @@ Audio recording to speech-to-text script using speaches.ai API. Record audio fro
 - [uv](https://docs.astral.sh/uv/) package manager
 - ffmpeg (installation instructions below)
 - speaches.ai running locally (Docker)
+- [torch](https://pytorch.org/) (optional, required for VAD)
 
 ## Installation
 
@@ -68,9 +70,7 @@ docker run -d -p 8000:8000 ghcr.io/speaches-ai/speaches:latest
 
 ## Usage
 
-### GUI Mode (Recommended for Windows)
-
-Launch the graphical interface:
+### Launch the GUI
 
 ```powershell
 # Start with visible window
@@ -119,94 +119,21 @@ When the "Auto copy to clipboard" checkbox is enabled, transcribed text will aut
 
 This works **without admin rights** using standard keyboard input simulation.
 
-### Command-Line Mode
+### Command-Line Arguments for GUI
 
-### List Available Audio Devices
-
-```powershell
-python speakpy.py --list-devices
-```
-
-### Basic Recording and Transcription
-
-```powershell
-# Record from default microphone (press CTRL+C to stop)
-python speakpy.py
-
-# Record from specific device (use device index from --list-devices)
-python speakpy.py --device 1
-```
-
-**Recording Control:**
-- Press **CTRL+C once** to stop recording and proceed to transcription
-- Press **CTRL+C twice** to exit the application immediately
-
-### Advanced Options
-
-```powershell
-# Enable Voice Activity Detection (only record speech, skip silence)
-# In GUI mode, this sets the checkbox to Checked by default
-python speakpy.py --vad
-
-# Adjust VAD sensitivity (lower = more sensitive)
-# In GUI mode, this sets the default slider position
-python speakpy.py --vad --vad-threshold 0.3
-
-# Specify language for better accuracy
-python speakpy.py --language en
-
-# Combine VAD with language specification
-python speakpy.py --vad --language en
-
-# Use custom API endpoint
-python speakpy.py --api-url http://192.168.1.100:8000
-
-# Use different model
-python speakpy.py --model "Systran/faster-whisper-medium"
-
-# Enable verbose logging
-python speakpy.py --verbose
-
-# Keep temporary audio files for debugging
-python speakpy.py --keep-files
-```
-
-### Voice Activity Detection (VAD)
-
-The `--vad` flag enables real-time voice activity detection to record only when you're speaking:
-
-- **Automatic Silence Removal**: Skips silent segments during recording
-- **Real-time Feedback**: Shows "🎤 Speech detected..." or "⏸️ Silence..." status
-- **Smaller Files**: Output contains only speech, reducing file size
-- **Adjustable Sensitivity**: Use `--vad-threshold` (0.0-1.0) to tune detection
-  - Lower values (0.2-0.4): More sensitive, catches quieter speech
-  - Default (0.5): Balanced for normal speaking
-  - Higher values (0.6-0.8): Less sensitive, filters more aggressively
-
-**Note**: VAD requires PyTorch (~200MB). Install with:
-```powershell
-uv pip install torch
-```
-
-### Full Command Reference
+You can customize the GUI startup behavior with these flags:
 
 ```
-usage: speakpy.py [-h] [--list-devices] [--device DEVICE]
-                  [--api-url API_URL] [--model MODEL] [--language LANGUAGE]
-                  [--sample-rate SAMPLE_RATE] [--verbose] [--keep-files]
-                  [--vad] [--vad-threshold VAD_THRESHOLD]
+usage: speakpy_gui.py [-h] [--tray] [--api-url API_URL] [--model MODEL]
+                      [--vad] [--vad-threshold VAD_THRESHOLD] [--keep-files]
 
 Arguments:
-  --list-devices          List available audio input devices and exit
-  --device DEVICE         Audio input device index
-  --api-url API_URL       Speaches.ai API base URL (default: http://localhost:8000)
-  --model MODEL           Model to use for transcription
-  --language LANGUAGE     Language code (e.g., 'en', 'es')
-  --sample-rate RATE      Recording sample rate in Hz (default: 44100)
-  --verbose               Enable verbose logging
-  --keep-files            Keep temporary audio files for debugging
-  --vad                   Enable Voice Activity Detection
-  --vad-threshold THRESH  VAD sensitivity 0.0-1.0 (default: 0.5)
+  --tray                  Start minimized to system tray
+  --api-url API_URL       Speaches.ai API URL (default: http://localhost:8000)
+  --model MODEL           Transcription model
+  --vad                   Enable Voice Activity Detection by default
+  --vad-threshold THRESH  VAD sensitivity threshold (default: 0.5)
+  --keep-files            Keep temporary audio files
 ```
 
 ## How It Works
@@ -234,7 +161,6 @@ Arguments:
 
 ### "No input devices found"
 - Check if your microphone is connected and enabled
-- Try listing devices: `python speakpy.py --list-devices`
 - Check Windows sound settings
 
 ### Poor transcription quality
@@ -247,8 +173,7 @@ Arguments:
 
 ```
 speakpy/
-├── speakpy.py              # Main CLI script
-├── speakpy_gui.py          # GUI entry point
+├── speakpy_gui.py          # Main GUI application
 ├── pyproject.toml          # Project configuration
 ├── README.md               # This file
 ├── src/
