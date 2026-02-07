@@ -27,6 +27,8 @@
 
 4. **API Health Checks**: [SpeachesClient.check_health()](src/api_client.py#L98) tries `/health` then falls back to `/docs`. Always verify API availability before recording to provide early user feedback.
 
+5. **Single Instance Locking**: [SingleInstance](src/single_instance.py) uses a Windows Named Mutex (`Global\SpeakPy_SingleInstance`) to prevent multiple application instances. This avoids conflicts with audio devices and system tray icons. It's checked immediately in `main()` before GUI creation.
+
 ---
 
 ## Critical Implementation Constraints

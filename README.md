@@ -9,6 +9,7 @@ Audio recording to speech-to-text script using speaches.ai API. Record audio fro
 - 🎤 **Audio Recording**: Record from any audio input device using sounddevice
 - 🖥️ **GUI Interface**: Easy-to-use graphical interface with real-time feedback
 - 🎙️ **Voice Activity Detection (VAD)**: Optional silence filtering using Silero VAD
+- 🔒 **Single Instance**: Prevents multiple copies of the app from running simultaneously
 - 🗜️ **Smart Compression**: Automatic silence removal and Opus encoding with ffmpeg
 - 🚀 **Fast Transcription**: Uses speaches.ai (OpenAI-compatible API) with faster-whisper
 - 💻 **Windows Compatible**: Works on Windows 11 without admin rights
