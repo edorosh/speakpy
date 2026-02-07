@@ -73,7 +73,9 @@
 - Follow tkinter grid layout in [_setup_ui()](src/gui.py#L65) with proper weight configuration
 - Always use thread-safe queue for logging, never direct writes to Text widgets from threads
 
----
+**After implementing a new feature:**
+
+- Write a walkthrough markdown file in the `walkthrough/` folder (e.g., `walkthrough_NN.md`) documenting the changes, usage instructions, and verification steps. Use the next sequential number for the filename.
 
 ---
 
