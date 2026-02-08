@@ -116,4 +116,14 @@ This ensures:
 
 ---
 
+## Build Configuration
+
+### Hatchling Setup
+
+1. **Non-Standard Layout**: This project uses a custom layout where `speakpy_gui.py` is in the root and other modules are in `src/`, but there is no top-level `speakpy` package directory.
+2. **Explicit Include**: To support this, `pyproject.toml` contains a `[tool.hatch.build.targets.wheel]` section that explicitly includes `packages = ["src", "speakpy_gui.py"]`.
+3. **Editable Installs**: This configuration allows `uv pip install -e .` to work correctly by telling `hatchling` exactly what to include in the wheel, bypassing its default auto-detection which fails for this structure.
+
+---
+
 *For project overview, installation, and usage instructions, see [README.md](README.md).*
