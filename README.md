@@ -190,6 +190,12 @@ speakpy/
         └── ffmpeg.exe
 ```
 
+## To-Do List
+
+- [ ] **Switch from PyTorch to ONNX Runtime**: Migrate VAD and other components to use ONNX runtime for improved performance and reduced dependency size.
+- [ ] **Dynamic API Handler**: Add a field to the transcription API endpoint to allow dynamic switching of API handlers at runtime.
+- [ ] **Streaming Transcription**: Implement real-time streaming transcription to provide live text feedback while recording.
+
 ## Credits
 
 - [speaches.ai](https://github.com/speaches-ai/speaches) - OpenAI-compatible STT/TTS server
